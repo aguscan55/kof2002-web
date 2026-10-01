@@ -1,0 +1,8 @@
+# ROMs y BIOS: nunca se suben
+*.zip
+*.7z
+*.rom
+*.bin
+
+# respaldo local
+index.original.html

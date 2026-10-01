@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOF 2002 Web Player</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{--bg:#0b0d12;--panel:#151922;--line:#262c3a;--text:#e8ebf2;--muted:#8b93a7;--accent:#e63946;--ok:#2a9d8f}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,sans-serif}
+  header{padding:14px 24px;border-bottom:1px solid var(--line)}
+  header h1{font-size:20px;margin:0;letter-spacing:.5px}
+  header span{color:var(--accent);font-weight:700}
+  main{max-width:1100px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:1fr 310px;gap:20px}
+  @media(max-width:860px){main{grid-template-columns:1fr}}
+  .stage{background:#000;border:1px solid var(--line);border-radius:10px;aspect-ratio:4/3;overflow:hidden;position:relative}
+  #game{width:100%;height:100%}
+  #remote{width:100%;height:100%;display:none;background:#000;object-fit:contain}
+  #unmute{position:absolute;inset:auto 0 12px 0;margin:auto;width:max-content;display:none;padding:8px 14px;border-radius:8px;background:rgba(0,0,0,.75);border:1px solid var(--line);color:#fff;cursor:pointer}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 12px}
+  label{display:block;font-size:14px;margin:4px 0 6px}
+  input[type=file]{width:100%;font-size:13px;color:var(--muted)}
+  input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0e1118;color:var(--text);font-size:16px;text-transform:uppercase;letter-spacing:3px;text-align:center}
+  button{margin-top:12px;width:100%;padding:11px;border:0;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+  button.sec{background:#2a3142}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  small{display:block;color:var(--muted);margin-top:10px;line-height:1.4}
+  .msg{font-size:13px;margin-top:10px;min-height:18px;color:#f4a261}
+  input.link{font-size:12px;text-transform:none;letter-spacing:0;text-align:left;margin-top:4px}
+  .code{font-size:30px;letter-spacing:6px;text-align:center;font-weight:800;color:var(--ok);margin:8px 0}
+  .chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin-top:10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td{padding:4px 0;border-bottom:1px solid var(--line)}
+  th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding-bottom:6px}
+  td:not(:first-child),th:not(:first-child){text-align:right;color:var(--muted);white-space:nowrap}
+  th:first-child{text-align:left}
+  .howto{display:none;margin-top:12px;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--panel);gap:10px 18px;flex-wrap:wrap;align-items:center;font-size:15px}
+  .howto b{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+  .howto .step{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;border:1px solid transparent}
+  .howto .step.on{border-color:var(--accent);background:rgba(230,57,70,.12)}
+  .howto .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#2a3142;font-size:12px;font-weight:700}
+  .howto .step.on .n{background:var(--accent)}
+  .howto kbd{font-size:14px;padding:3px 9px}
+  .howto .alt{color:var(--muted);font-size:13px}
+  select{width:100%;margin-top:6px;padding:8px;border-radius:8px;border:1px solid var(--line);background:#0e1118;color:var(--text);font-size:13px}
+  #padStatus{color:var(--muted)}
+  #padStatus.ok{color:var(--ok)}
+  kbd{display:inline-block;min-width:24px;padding:2px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:#0e1118;color:var(--text);font:600 12px system-ui,sans-serif;text-align:center}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:24px 16px 40px;line-height:1.6}
+</style>
+</head>
+<body>
+<header><h1><span>KOF 2002</span> Web Player</h1></header>
+
+<main>
+  <section>
+    <div class="stage">
+      <div id="game"></div>
+      <video id="remote" autoplay playsinline muted></video>
+      <button id="unmute">Click para activar el sonido</button>
+    </div>
+    <div class="howto" id="howto">
+      <b>Para empezar</b>
+      <div class="step on" id="stepCoin"><span class="n">1</span> Poné una ficha: <kbd>5</kbd> <span class="alt">joystick: Select</span></div>
+      <div class="step" id="stepStart"><span class="n">2</span> Después apretá <kbd>Enter</kbd> <span class="alt">joystick: Start</span></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel" id="loadPanel">
+      <h2>1 · Cargar juego</h2>
+      <div id="savedBox" style="display:none">
+        <button id="playSaved">Jugar con el juego guardado</button>
+        <button class="sec" id="forget">Borrar lo guardado</button>
+        <small>— o cargá otros archivos —</small>
+      </div>
+      <label for="files">Archivo del juego (kof2002.zip)</label>
+      <input type="file" id="files" accept=".zip,.7z" multiple>
+      <small>Si tu kof2002.zip ya trae la BIOS de Neo Geo adentro, alcanza con ese archivo. Si no, seleccioná también neogeo.zip en la misma ventana (Ctrl+clic). Si "Recordar" está activo, la próxima vez ya no hay que volver a cargar nada.</small>
+      <div class="chk"><input type="checkbox" id="remember" checked><label for="remember" style="margin:0">Recordar en este navegador</label></div>
+      <button id="start" disabled>Jugar</button>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2 · Jugar con un amigo</h2>
+      <div id="hostBox">
+        <button id="createRoom" disabled>Invitar a un amigo</button>
+        <div id="invite" style="display:none">
+          <div class="code" id="roomCode"></div>
+          <input type="text" class="link" id="inviteLink" readonly aria-label="Enlace de invitación">
+          <button class="sec" id="copyLink">Copiar enlace de invitación</button>
+        </div>
+        <div class="msg" id="hostMsg" style="color:var(--muted)">Primero iniciá el juego.</div>
+        <small>Tu amigo no necesita la ROM: abre el enlace, ve tu partida por streaming y juega como P2 con su teclado. Tu archivo nunca sale de tu computadora. No cierres esta pestaña.</small>
+        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      </div>
+      <label for="joinCode" id="joinLabel">¿Te invitaron? Pegá el enlace o el código</label>
+      <input type="text" id="joinCode" placeholder="XXXXX" autocomplete="off" spellcheck="false">
+      <button class="sec" id="joinBtn">Unirme</button>
+      <div class="msg" id="joinMsg" style="color:var(--muted)"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Controles · iguales para los dos</h2>
+      <table>
+        <tr><th>Acción</th><th>Teclado</th><th>Joystick</th></tr>
+        <tr><td>Mover</td><td><kbd>← ↑ ↓ →</kbd></td><td>Cruceta / stick</td></tr>
+        <tr><td>A · golpe débil</td><td><kbd>Z</kbd></td><td>□ &nbsp;(X en Xbox)</td></tr>
+        <tr><td>B · patada débil</td><td><kbd>X</kbd></td><td>✕ &nbsp;(A en Xbox)</td></tr>
+        <tr><td>C · golpe fuerte</td><td><kbd>C</kbd></td><td>△ &nbsp;(Y en Xbox)</td></tr>
+        <tr><td>D · patada fuerte</td><td><kbd>V</kbd></td><td>○ &nbsp;(B en Xbox)</td></tr>
+        <tr><td>1 · Poner ficha</td><td><kbd>5</kbd></td><td>Select / Back</td></tr>
+        <tr><td>2 · Start</td><td><kbd>Enter</kbd></td><td>Start</td></tr>
+      </table>
+      <small id="padStatus">Joystick: conectalo y apretá cualquier botón para que la página lo detecte.</small>
+      <div id="padWho">
+        <select id="padPlayer" aria-label="A quién controla el joystick">
+          <option value="0">El joystick controla al mismo jugador que el teclado</option>
+          <option value="1">El joystick es el jugador 2 (dos en esta misma PC)</option>
+        </select>
+      </div>
+      <small>Cada jugador usa estos mismos controles en su propia computadora, con teclado o joystick.</small>
+    </div>
+
+    <div class="panel" id="adBox" style="display:none">
+      <h2>Publicidad</h2>
+      <ins class="adsbygoogle" id="adSlot" style="display:block" data-ad-format="auto" data-full-width-responsive="true"></ins>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  Esta página es solo un emulador. No incluye ni distribuye juegos ni BIOS; cada anfitrión usa sus propios archivos.<br>
+  King of Fighters es marca de SNK Corporation; este proyecto no está afiliado a SNK.
+</footer>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+/* ---------- Captura de audio del emulador (para el streaming al invitado) ---------- */
+window.__audioStreams = [];
+(function(){
+  const taps = new Map();
+  const orig = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function(dest, ...rest){
+    try{
+      if (dest instanceof AudioDestinationNode){
+        const ctx = dest.context;
+        if (!taps.has(ctx)){
+          const t = ctx.createMediaStreamDestination();
+          taps.set(ctx, t); window.__audioStreams.push(t.stream);
+        }
+        orig.call(this, taps.get(ctx));
+      }
+    }catch(e){}
+    return orig.call(this, dest, ...rest);
+  };
+})();
+
+/* ---------- Seguir emulando con la pestaña oculta (solo con un invitado conectado) ---------- */
+// Chrome frena requestAnimationFrame en pestañas ocultas y además RetroArch se pausa solo
+// cuando la página deja de ser visible: sin esto el juego se congela y el invitado se queda
+// sin video apenas el anfitrión cambia de pestaña.
+let setBgRun = ()=>{}, afterFrame = null;
+(function(){
+  const raf = window.requestAnimationFrame.bind(window);
+  const realHidden = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden').get.bind(document);
+  let queue = new Map(), nextId = 1, scheduled = false, ticker = null;
+  const flush = ()=>{
+    const q = queue; queue = new Map();
+    const now = performance.now();
+    q.forEach(cb=>{ try{ cb(now); }catch(e){ setTimeout(()=>{ throw e; }); } });
+    if (afterFrame && q.size) afterFrame();
+  };
+  window.requestAnimationFrame = cb=>{
+    const id = nextId++; queue.set(id, cb);
+    if (!scheduled){ scheduled = true; raf(()=>{ scheduled = false; flush(); }); }
+    return id;
+  };
+  window.cancelAnimationFrame = id=>{ queue.delete(id); };
+  setBgRun = on=>{
+    if (on && !ticker){
+      // los timers de un Worker no se frenan en segundo plano
+      ticker = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),1000/60)'])));
+      ticker.onmessage = ()=>{ if (realHidden()) flush(); };
+      // el emulador tiene que creer que la página sigue visible
+      Object.defineProperty(document, 'hidden', {configurable:true, get:()=>false});
+      Object.defineProperty(document, 'visibilityState', {configurable:true, get:()=>'visible'});
+    } else if (!on && ticker){
+      ticker.terminate(); ticker = null;
+      delete document.hidden; delete document.visibilityState;
+    } else return;
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+})();
+
+/* ---------- Almacenamiento local (IndexedDB) ---------- */
+const idb = {
+  open(){ return new Promise((res,rej)=>{ const r=indexedDB.open('kof-web',1); r.onupgradeneeded=()=>r.result.createObjectStore('f'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
+  async get(k){ const db=await this.open(); return new Promise((res)=>{ const q=db.transaction('f').objectStore('f').get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>res(null); }); },
+  async set(k,v){ const db=await this.open(); return new Promise((res)=>{ const t=db.transaction('f','readwrite'); t.objectStore('f').put(v,k); t.oncomplete=()=>res(); t.onerror=()=>res(); }); },
+  async del(k){ const db=await this.open(); return new Promise((res)=>{ const t=db.transaction('f','readwrite'); t.objectStore('f').delete(k); t.oncomplete=()=>res(); }); }
+};
+
+const $ = id => document.getElementById(id);
+
+/* ---------- Anuncio lateral (Google AdSense) ---------- */
+// Completar con los datos de la cuenta de AdSense. Vacío = la página no muestra ni carga anuncios.
+const ADSENSE_CLIENT = '';   // ej. 'ca-pub-1234567890123456'
+const ADSENSE_SLOT = '';     // ej. '1234567890'
+if (ADSENSE_CLIENT && ADSENSE_SLOT){
+  $('adSlot').dataset.adClient = ADSENSE_CLIENT;
+  $('adSlot').dataset.adSlot = ADSENSE_SLOT;
+  $('adBox').style.display = 'block';
+  const ad = document.createElement('script');
+  ad.async = true; ad.crossOrigin = 'anonymous';
+  ad.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + ADSENSE_CLIENT;
+  document.head.appendChild(ad);
+  (window.adsbygoogle = window.adsbygoogle || []).push({});
+}
+let sel = {rom:null, bios:null}, saved = {rom:null, bios:null};
+let gameRunning = false;
+
+function refresh(){
+  const rom = sel.rom || null;
+  const bios = sel.bios || saved.bios;
+  $('start').disabled = !rom;
+  if (sel.bios && !rom) $('msg').textContent = 'Falta el archivo del juego (kof2002.zip).';
+  else $('msg').textContent = '';
+}
+
+$('files').addEventListener('change', e=>{
+  sel = {rom:null, bios:null};
+  for (const f of e.target.files){
+    if (/neogeo/i.test(f.name)) sel.bios = f; else sel.rom = f;
+  }
+  refresh();
+});
+
+(async()=>{
+  try{
+    saved.rom = await idb.get('rom'); saved.bios = await idb.get('bios');
+    if (saved.rom) $('savedBox').style.display = 'block';
+  }catch(e){}
+})();
+
+$('forget').onclick = async()=>{ await idb.del('rom'); await idb.del('bios'); saved={rom:null,bios:null}; $('savedBox').style.display='none'; };
+$('playSaved').onclick = ()=> startGame(saved.rom, saved.bios);
+$('start').onclick = async()=>{
+  const rom = sel.rom, bios = sel.bios || saved.bios;
+  if ($('remember').checked){
+    try{ await idb.set('rom', rom); if (sel.bios) await idb.set('bios', sel.bios); }catch(e){}
+  }
+  startGame(rom, bios);
+};
+
+function startGame(rom, bios){
+  if (gameRunning) return;
+  gameRunning = true;
+  $('start').disabled = true; $('playSaved').disabled = true;
+  $('msg').textContent = 'Iniciando emulador...';
+  window.EJS_player = '#game';
+  window.EJS_core = 'arcade';              // FBNeo (Neo Geo)
+  window.EJS_gameName = 'kof2002';
+  window.EJS_gameUrl = new File([rom], rom.name || 'kof2002.zip');
+  // la BIOS es opcional: FBNeo también la busca dentro del zip del juego
+  if (bios) window.EJS_biosUrl = new File([bios], bios.name || 'neogeo.zip');
+  window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
+  window.EJS_startOnLoaded = true;
+  window.EJS_color = '#e63946';
+  window.EJS_language = 'es-ES';
+  // El teclado y el joystick los maneja esta página (ver KEYMAP y PADMAP), igual para
+  // P1 y P2. El gameID nuevo descarta controles guardados de antes.
+  window.EJS_gameID = 3;
+  window.EJS_defaultControls = {0:{}, 1:{}, 2:{}, 3:{}};
+  window.EJS_onGameStart = ()=>{ $('howto').style.display = 'flex'; $('createRoom').disabled = false; $('hostMsg').textContent = 'Listo para crear una sala.'; $('msg').textContent=''; };
+  const s = document.createElement('script');
+  s.src = 'https://cdn.emulatorjs.org/stable/data/loader.js';
+  s.onerror = ()=>{ $('msg').textContent='No se pudo cargar el emulador (¿sin conexión?).'; gameRunning=false; refresh(); };
+  document.body.appendChild(s);
+  // por si el emulador no dispara el callback
+  setTimeout(()=>{ $('createRoom').disabled = false; }, 8000);
+}
+
+/* ---------- Controles: un solo mapa de teclas para los dos jugadores ---------- */
+// RetroPad: 0=B 1=Y 2=Select(Coin) 3=Start 4=Up 5=Down 6=Left 7=Right 8=A 9=X
+// Neo Geo en FBNeo: A=0  B=8  C=1  D=9
+const KEYMAP = {
+  ArrowUp:4, ArrowDown:5, ArrowLeft:6, ArrowRight:7,
+  KeyZ:0, KeyX:8, KeyC:1, KeyV:9,
+  Digit5:2, Enter:3
+};
+// Joystick (disposición estándar): 0=abajo 1=derecha 2=izquierda 3=arriba 8=Select 9=Start 12-15=cruceta
+const PADMAP = {2:0, 0:8, 3:1, 1:9, 8:2, 9:3, 12:4, 13:5, 14:6, 15:7};
+let sendInput = null;   // invitado: le manda el botón al anfitrión
+const emu = ()=> window.EJS_emulator?.started ? window.EJS_emulator.gameManager : null;
+const active = ()=> !!(sendInput || emu());
+const held = {kb:new Set(), pad:new Set()};
+// en el anfitrión el joystick puede ser el jugador 2 (dos personas en la misma PC)
+const padIsP2 = ()=> !sendInput && $('padPlayer').value === '1';
+function emit(player, i, v){
+  if (i === 2 && v) coinStep(true);
+  if (i === 3 && v) coinStep(false);
+  if (sendInput) sendInput(i, v); else emu()?.simulateInput(player, i, v);
+}
+function setInput(src, i, v){
+  if (src === 'pad' && padIsP2()){
+    v ? held.pad.add(i) : held.pad.delete(i);
+    return emit(1, i, v);
+  }
+  const was = held.kb.has(i) || held.pad.has(i);
+  v ? held[src].add(i) : held[src].delete(i);
+  const is = held.kb.has(i) || held.pad.has(i);
+  if (was !== is) emit(0, i, is ? 1 : 0);
+}
+// resalta el paso que toca: primero la ficha, después Start
+function coinStep(coinDone){
+  $('stepCoin').classList.toggle('on', !coinDone);
+  $('stepStart').classList.toggle('on', coinDone);
+}
+function onKey(e, v){
+  const i = KEYMAP[e.code];
+  if (i === undefined) return;
+  if (e.target instanceof HTMLInputElement && e.target.type === 'text') return;
+  if (v && (e.ctrlKey || e.altKey || e.metaKey)) return;
+  if (!active()) return;
+  e.preventDefault();
+  setInput('kb', i, v);
+}
+document.addEventListener('keydown', e=>onKey(e,1));
+document.addEventListener('keyup', e=>onKey(e,0));
+
+function pollPads(){
+  requestAnimationFrame(pollPads);
+  const now = new Set();
+  let name = '';
+  for (const gp of navigator.getGamepads()){
+    if (!gp || !gp.connected) continue;
+    name = name || gp.id;
+    for (const b in PADMAP) if (gp.buttons[b]?.pressed) now.add(PADMAP[b]);
+    const [x = 0, y = 0] = gp.axes;
+    if (y < -.5) now.add(4); if (y > .5) now.add(5);
+    if (x < -.5) now.add(6); if (x > .5) now.add(7);
+  }
+  if (name !== padName){
+    padName = name;
+    $('padStatus').className = name ? 'ok' : '';
+    $('padStatus').textContent = name ? 'Joystick detectado: ' + name.replace(/\s*\(.*$/, '')
+                                      : 'Joystick: conectalo y apretá cualquier botón para que la página lo detecte.';
+  }
+  if (!active()) return;
+  for (let i = 0; i < 10; i++) if (now.has(i) !== held.pad.has(i)) setInput('pad', i, now.has(i) ? 1 : 0);
+}
+let padLoop = false, padName = '';
+window.addEventListener('gamepadconnected', ()=>{ if (!padLoop){ padLoop = true; pollPads(); } });
+// al cambiar de jugador soltamos lo que el joystick tuviera apretado
+$('padPlayer').addEventListener('change', ()=>{
+  const gm = emu();
+  held.pad.forEach(i=>{ if (gm){ gm.simulateInput(1, i, 0); if (!held.kb.has(i)) gm.simulateInput(0, i, 0); } });
+  held.pad.clear();
+});
+
+/* ---------- Multijugador (WebRTC con PeerJS) ---------- */
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const randCode = ()=> Array.from({length:5},()=>ALPHABET[Math.floor(Math.random()*ALPHABET.length)]).join('');
+const PREFIX = 'kof2002web-';
+let peer = null;
+
+// ----- Anfitrión -----
+$('createRoom').onclick = ()=>{
+  if (peer) return;
+  const code = randCode();
+  $('createRoom').disabled = true;
+  $('hostMsg').textContent = 'Creando sala...';
+  peer = new Peer(PREFIX + code);
+  peer.on('open', ()=>{
+    $('roomCode').textContent = code;
+    $('inviteLink').value = location.href.split(/[?#]/)[0] + '?sala=' + code;
+    $('invite').style.display = 'block'; $('createRoom').style.display = 'none';
+    $('hostMsg').textContent = 'Mandale el enlace a tu amigo (o dictale el código).';
+  });
+  peer.on('error', e=>{ $('hostMsg').textContent = 'Error: ' + e.type; peer=null; $('createRoom').disabled=false; });
+  peer.on('connection', conn=>{
+    let call = null, gone = false;
+    const bye = ()=>{
+      if (gone) return;
+      gone = true;
+      $('hostMsg').textContent = 'Tu amigo se desconectó. Puede volver a entrar con el mismo código.';
+      releaseAll(); setBgRun(false); afterFrame = null;
+      call?.close(); conn.close();
+    };
+    conn.on('open', ()=>{
+      $('hostMsg').textContent = 'Amigo conectado. ¡A jugar!';
+      const canvas = document.querySelector('#game canvas');
+      if (!canvas){ $('hostMsg').textContent='No encuentro la pantalla del juego.'; return; }
+      const tracks = [videoTrack(canvas)];
+      (window.__audioStreams[0]?.getAudioTracks() || []).forEach(t=>tracks.push(t));
+      call = peer.call(conn.peer, new MediaStream(tracks));
+      setBgRun(true);
+      // PeerJS no avisa si el invitado cierra la pestaña de golpe: miramos la conexión WebRTC
+      const pc = conn.peerConnection;
+      pc?.addEventListener('connectionstatechange', ()=>{
+        if (gone) return;
+        if (pc.connectionState === 'connected') $('hostMsg').textContent = 'Amigo conectado. ¡A jugar!';
+        else if (pc.connectionState === 'disconnected'){ $('hostMsg').textContent = 'Se perdió la conexión con tu amigo, reintentando...'; releaseAll(); }
+        else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') bye();
+      });
+    });
+    conn.on('data', m=>{
+      const gm = window.EJS_emulator?.gameManager;
+      if (gm && m && typeof m.i==='number') gm.simulateInput(1, m.i, m.v);
+    });
+    conn.on('close', bye);
+  });
+};
+$('inviteLink').onclick = e=>e.target.select();
+$('copyLink').onclick = async()=>{
+  const link = $('inviteLink');
+  try{ await navigator.clipboard.writeText(link.value); }
+  catch(e){ link.select(); document.execCommand('copy'); }
+  $('copyLink').textContent = '¡Enlace copiado!';
+  setTimeout(()=>{ $('copyLink').textContent = 'Copiar enlace de invitación'; }, 2000);
+};
+// captureStream() no entrega cuadros con la pestaña oculta; donde se puede (Chrome/Edge)
+// armamos el video copiando el canvas justo después de cada cuadro del emulador.
+function videoTrack(canvas){
+  if (!window.MediaStreamTrackGenerator || !window.VideoFrame) return canvas.captureStream(60).getVideoTracks()[0];
+  const gen = new MediaStreamTrackGenerator({kind:'video'});
+  const writer = gen.writable.getWriter();
+  afterFrame = ()=>{
+    if (writer.desiredSize <= 0) return;
+    try{ writer.write(new VideoFrame(canvas, {timestamp: performance.now()*1000})).catch(()=>{}); }catch(e){}
+  };
+  return gen;
+}
+function releaseAll(){
+  const gm = window.EJS_emulator?.gameManager;
+  if (gm) for (let i=0;i<16;i++) gm.simulateInput(1,i,0);
+}
+
+// ----- Invitado -----
+// acepta el código solo o el enlace de invitación entero
+const codeFrom = t=>{
+  const m = /[?&#]sala=([a-z0-9]{5})/i.exec(t);
+  return (m ? m[1] : t.replace(/[^a-z0-9]/gi, '').slice(0, 5)).toUpperCase();
+};
+const JOIN_ERRORS = {
+  'peer-unavailable': 'No hay ninguna sala con ese código. Revisalo o pedile uno nuevo a tu amigo.',
+  'network': 'No hay conexión a internet.',
+  'server-error': 'El servidor de salas no responde. Probá de nuevo en un rato.'
+};
+$('joinCode').addEventListener('input', e=>{ e.target.value = codeFrom(e.target.value); });
+$('joinCode').addEventListener('keydown', e=>{ if (e.key === 'Enter') $('joinBtn').click(); });
+$('joinBtn').onclick = ()=>{
+  const code = codeFrom($('joinCode').value);
+  if (code.length !== 5){ $('joinMsg').textContent = 'El código tiene 5 caracteres.'; return; }
+  $('joinBtn').disabled = true; $('joinMsg').textContent = 'Conectando con la sala ' + code + '...';
+  const p = new Peer();
+  // avisarle al anfitrión enseguida si cerramos la pestaña
+  window.addEventListener('pagehide', ()=>p.destroy());
+  p.on('error', e=>{
+    $('joinMsg').textContent = JOIN_ERRORS[e.type] || 'No se pudo conectar (' + e.type + ').';
+    $('joinBtn').disabled = false; $('joinBtn').textContent = 'Reintentar';
+    sendInput = null; p.destroy();
+  });
+  p.on('open', ()=>{
+    const conn = p.connect(PREFIX + code, {reliable:false});
+    conn.on('open', ()=>{
+      $('joinMsg').textContent = 'Conectado, esperando video...';
+      sendInput = (i, v)=>conn.send({i, v});
+    });
+    conn.on('close', ()=>{
+      sendInput = null;
+      $('joinMsg').textContent = 'La sala se cerró.';
+      $('joinBtn').disabled = false; $('joinBtn').textContent = 'Volver a entrar';
+    });
+  });
+  p.on('call', call=>{
+    call.answer();
+    call.on('stream', stream=>{
+      $('game').style.display = 'none';
+      const v = $('remote'); v.style.display = 'block'; v.srcObject = stream;
+      v.play().catch(()=>{});
+      $('unmute').style.display = v.muted ? 'block' : 'none';
+      guestMode();
+      $('joinMsg').textContent = 'Jugando como jugador 2.';
+      $('howto').style.display = 'flex';
+    });
+  });
+};
+function guestMode(){
+  $('padWho').style.display = 'none';
+  $('loadPanel').style.display = 'none';
+  $('hostBox').style.display = 'none';
+}
+// si llegamos por un enlace de invitación (?sala=XXXXX), entrar directo
+(()=>{
+  const q = location.search + location.hash;
+  if (!/[?&#]sala=[a-z0-9]{5}/i.test(q)) return;
+  guestMode();
+  $('joinLabel').textContent = 'Te invitaron a jugar';
+  $('joinCode').value = codeFrom(q);
+  $('joinBtn').click();
+})();
+$('unmute').onclick = ()=>{ $('remote').muted = false; $('unmute').style.display = 'none'; };
+</script>
+</body>
+</html>
